@@ -1,0 +1,8 @@
+ÀÄmain
+   ÀÄMAIN  0/63  Ram=0
+      ÃÄ@cinit1  (Inline)  Ram=0
+      ÃÄmove_backward  0/27  Ram=0
+      ÃÄturn_left  0/27  Ram=0
+      ÃÄturn_right  0/27  Ram=0
+      ÃÄstop  0/25  Ram=0
+      ÀÄstop  0/25  Ram=0

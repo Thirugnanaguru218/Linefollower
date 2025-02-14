@@ -1,0 +1,102 @@
+#include <16F877A.h>
+#fuses HS, NOWDT, NOLVP
+#use delay(clock=40000000)  // 40 MHz clock frequency
+
+// Motor direction control pins (connected to PORTC)
+#define LEFT_MOTOR_FORWARD   PIN_C0 // Left motor forward direction
+#define LEFT_MOTOR_BACKWARD  PIN_C1 // Left motor backward direction
+#define RIGHT_MOTOR_FORWARD  PIN_C2 // Right motor forward direction
+#define RIGHT_MOTOR_BACKWARD PIN_C3 // Right motor backward direction
+
+// Sensors
+#define LEFT_SENSOR PIN_D0
+#define RIGHT_SENSOR PIN_D1
+
+// Software PWM Control
+void software_pwm(int motor_pin, int duty_cycle) {
+    // motor_pin: Pin for controlling motor (either left or right)
+    // duty_cycle: Percentage of time the motor should be ON (0-100)
+    int on_time = duty_cycle;   // The time the motor pin stays ON (in ms)
+    int off_time = 100 - duty_cycle;  // The time the motor pin stays OFF (in ms)
+    
+    output_high(motor_pin);  // Set motor pin HIGH (on)
+    delay_ms(on_time);       // Wait for ON time
+    output_low(motor_pin);   // Set motor pin LOW (off)
+    delay_ms(off_time);      // Wait for OFF time
+}
+
+// Motor control functions using software PWM
+void move_forward(int left_pwm, int right_pwm) {
+    output_high(LEFT_MOTOR_FORWARD);  // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD); // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);
+    
+    // Control speed using software PWM
+    software_pwm(LEFT_MOTOR_FORWARD, left_pwm);  // Control left motor speed
+    software_pwm(RIGHT_MOTOR_FORWARD, right_pwm); // Control right motor speed
+}
+
+void move_backward(int left_pwm, int right_pwm) {
+    output_low(LEFT_MOTOR_FORWARD);   // Move left motor backward
+    output_high(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);  // Move right motor backward
+    output_high(RIGHT_MOTOR_BACKWARD);
+    
+    // Control speed using software PWM
+    software_pwm(LEFT_MOTOR_BACKWARD, left_pwm);  // Control left motor speed
+    software_pwm(RIGHT_MOTOR_BACKWARD, right_pwm); // Control right motor speed
+}
+
+void turn_left(int left_pwm, int right_pwm) {
+    output_low(LEFT_MOTOR_FORWARD);   // Stop left motor
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD); // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);
+    
+    // Control speed using software PWM
+    software_pwm(RIGHT_MOTOR_FORWARD, right_pwm); // Control right motor speed
+}
+
+void turn_right(int left_pwm, int right_pwm) {
+    output_high(LEFT_MOTOR_FORWARD);  // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);  // Stop right motor
+    output_low(RIGHT_MOTOR_BACKWARD);
+    
+    // Control speed using software PWM
+    software_pwm(LEFT_MOTOR_FORWARD, left_pwm);  // Control left motor speed
+}
+
+void stop() {
+    output_low(LEFT_MOTOR_FORWARD);  // Stop both motors
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+}
+
+void main() {
+    set_tris_c(0x00);  // Set PORTC as output for motor control
+    set_tris_d(0xFF);  // Set PORTD as input for sensors (D0 and D1)
+
+    int left_pwm = 50;  // Left motor speed (50% duty cycle)
+    int right_pwm = 50; // Right motor speed (50% duty cycle)
+
+    while(TRUE) {
+        int left = input(LEFT_SENSOR);   // Read left sensor
+        int right = input(RIGHT_SENSOR); // Read right sensor
+
+        if (left == 0 && right == 0) {  // Both sensors detect the line (0)
+            move_backward(left_pwm, right_pwm);  // Move forward
+        } else if (left == 0 && right == 1) {  // Left sensor on line, right sensor off
+            turn_left(left_pwm, right_pwm);  // Turn left
+        } else if (left == 1 && right == 0) {  // Right sensor on line, left sensor off
+            turn_right(left_pwm, right_pwm);  // Turn right
+        } else if (left == 1 && right == 1) {  // Both sensors off line
+            stop();  // Stop the robot
+        } else {
+            stop();  // Unknown condition: stop the motors
+        }
+    }
+}
+

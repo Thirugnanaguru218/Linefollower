@@ -1,0 +1,76 @@
+#include <16F877A.h>
+#fuses HS, NOWDT, NOLVP
+#use delay(clock=40000000)  // 40 MHz clock frequency
+
+// Motor control pins (connected to motor driver)
+#define IN1 PIN_C0 // Left motor forward (IN1)
+#define IN2 PIN_C1 // Left motor backward (IN2)
+#define IN3 PIN_C2 // Right motor forward (IN3)
+#define IN4 PIN_C3 // Right motor backward (IN4)
+
+// Sensors
+#define LEFT_SENSOR PIN_D0
+#define RIGHT_SENSOR PIN_D1
+
+// Motor control functions
+void move_forward() {
+    output_high(IN1);  // Left motor forward
+    output_low(IN2);   // Left motor stop backward
+    output_high(IN3);  // Right motor forward
+    output_low(IN4);   // Right motor stop backward
+}
+
+void move_backward() {
+    output_low(IN1);   // Left motor stop forward
+    output_high(IN2);  // Left motor backward
+    output_low(IN3);   // Right motor stop forward
+    output_high(IN4);  // Right motor backward
+}
+
+void turn_left() {
+    output_low(IN1);   // Left motor stop forward
+    output_low(IN2);   // Left motor stop backward
+    output_high(IN3);  // Right motor forward
+    output_low(IN4);   // Right motor stop backward
+}
+
+void turn_right() {
+    output_high(IN1);  // Left motor forward
+    output_low(IN2);   // Left motor stop backward
+    output_low(IN3);   // Right motor stop forward
+    output_low(IN4);   // Right motor stop backward
+}
+
+void stop() {
+    output_low(IN1);  // Stop both motors
+    output_low(IN2);
+    output_low(IN3);
+    output_low(IN4);
+}
+
+void main() {
+    set_tris_c(0x00);  // Set PORTC as output for motor control
+    set_tris_d(0xFF);  // Set PORTD as input for sensors (D0 and D1)
+
+    while(TRUE) {
+        int left = input(LEFT_SENSOR);   // Read left sensor
+        int right = input(RIGHT_SENSOR); // Read right sensor
+
+        if (left == 0 && right == 0) {   // Both sensors detect the line (0)
+            move_forward();  // Move forward
+        }
+        else if (left == 0 && right == 1) {  // Left sensor on line, right sensor off line
+            turn_left();  // Turn left
+        }
+        else if (left == 1 && right == 0) {  // Right sensor on line, left sensor off line
+            turn_right();  // Turn right
+        }
+        else if (left == 1 && right == 1) {  // Both sensors off the line
+            move_backward();  // Move backward
+        }
+        else {
+            stop();  // Stop if unknown condition (safety fallback)
+        }
+    }
+}
+

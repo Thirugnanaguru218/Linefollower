@@ -1,0 +1,103 @@
+#include <16F877A.h>
+#fuses HS, NOWDT, NOLVP
+#use delay(clock=40000000)
+
+// Motor control pins (connected to motor driver)
+#define left_motor_forward   PIN_B2 // IN1
+#define left_motor_backward  PIN_B3 // IN2
+#define right_motor_forward  PIN_B4 // IN3
+#define right_motor_backward PIN_B5 // IN4
+
+// Sensors
+#define left_sensor PIN_D0
+#define right_sensor PIN_D1
+
+void setup_pwm() {
+    setup_ccp1(CCP_PWM);  // Configure CCP1 for PWM mode (for left motor)
+    setup_ccp2(CCP_PWM);  // Configure CCP2 for PWM mode (for right motor)
+    setup_timer_2(T2_DIV_BY_16, 255, 1); // Timer2 for PWM frequency
+}
+
+// Motor control functions
+void forward() {
+    output_high(left_motor_forward);
+    output_low(left_motor_backward);
+    output_high(right_motor_forward);
+    output_low(right_motor_backward);
+}
+
+void backward() {
+    output_low(left_motor_forward);
+    output_high(left_motor_backward);
+    output_low(right_motor_forward);
+    output_high(right_motor_backward);
+}
+
+void turn_left() {
+    output_low(left_motor_forward);
+    output_low(left_motor_backward);
+    output_high(right_motor_forward);
+    output_low(right_motor_backward);
+}
+
+void turn_right() {
+    output_high(left_motor_forward);
+    output_low(left_motor_backward);
+    output_low(right_motor_forward);
+    output_low(right_motor_backward);
+}
+
+void stop() {
+    output_low(left_motor_forward);
+    output_low(left_motor_backward);
+    output_low(right_motor_forward);
+    output_low(right_motor_backward);
+}
+
+void main() {
+    set_tris_b(0xFF);  // Set PORTB as input for sensors
+    set_tris_c(0x00);  // Set PORTC as output for motor control
+    set_tris_b(0x00);
+    
+    int duty1 = 0;
+    int duty2 = 0;
+    
+    setup_pwm();  // Initialize PWM
+    stop();       // Initialize motors to stop
+
+    while(TRUE) {
+        int left = input(left_sensor);  // Read left sensor
+        int right = input(right_sensor); // Read right sensor
+
+        if (left == 0 && right == 0) { // Both sensors on black line
+            forward(); 
+            if (duty1 < 255 && duty2 < 255) {
+                delay_ms(40); // Move forward
+                duty1 += 150;
+                duty2 += 150;
+                set_pwm1_duty(duty1); 
+                set_pwm2_duty(duty2);
+            }
+        } else if (left == 1 && right == 1) {  // Both sensors on white
+            backward(); // Move backward
+            if (duty1 < 255 && duty2 < 255) {
+                delay_ms(40); // Move backward
+                duty1 += 10;
+                duty2 += 10;
+                set_pwm1_duty(duty1); 
+                set_pwm2_duty(duty2);
+            }
+        } else if (left == 0 && right == 1) {  // Left sensor on black, right on white
+            turn_right(); // Turn right
+            duty1 = (duty1 > 0) ? duty1 - 30 : 0; // Reduce speed on left motor
+            set_pwm1_duty(duty1);
+        } else if (left == 1 && right == 0) {  // Left sensor on white, right on black
+            turn_left(); // Turn left
+            duty2 = (duty2 > 0) ? duty2 - 30 : 0; // Reduce speed on right motor
+            set_pwm2_duty(duty2);
+        } else {  // Both sensors on different lines (could add additional behavior here)
+            stop(); // Stop the motors
+        }
+    }
+}
+

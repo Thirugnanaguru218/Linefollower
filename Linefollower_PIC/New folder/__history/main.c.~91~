@@ -1,0 +1,78 @@
+#include <16F877A.h>
+#fuses HS, NOWDT, NOLVP
+#use delay(clock=40000000)  // 40 MHz clock frequency
+
+// Motor direction control pins (connected to PORTC)
+#define LEFT_MOTOR_FORWARD   PIN_C0 // Left motor forward direction
+#define LEFT_MOTOR_BACKWARD  PIN_C1 // Left motor backward direction
+#define RIGHT_MOTOR_FORWARD  PIN_C2 // Right motor forward direction
+#define RIGHT_MOTOR_BACKWARD PIN_C3 // Right motor backward direction
+
+// Sensors
+#define LEFT_SENSOR PIN_D0
+#define RIGHT_SENSOR PIN_D1
+
+// Function to control motor speed (simulated using delay)
+void move_forward(int speed_delay) {
+    output_high(LEFT_MOTOR_FORWARD);  // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD); // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);
+    delay_ms(speed_delay);  // Delay controls speed (longer = slower)
+}
+
+void move_backward(int speed_delay) {
+    output_low(LEFT_MOTOR_FORWARD);   // Move left motor backward
+    output_high(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);  // Move right motor backward
+    output_high(RIGHT_MOTOR_BACKWARD);
+    delay_ms(speed_delay);  // Delay controls speed (longer = slower)
+}
+
+void turn_left(int speed_delay) {
+    output_low(LEFT_MOTOR_FORWARD);   // Stop left motor
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD); // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);
+    delay_ms(speed_delay);  // Delay controls speed (longer = slower)
+}
+
+void turn_right(int speed_delay) {
+    output_high(LEFT_MOTOR_FORWARD);  // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);  // Stop right motor
+    output_low(RIGHT_MOTOR_BACKWARD);
+    delay_ms(speed_delay);  // Delay controls speed (longer = slower)
+}
+
+void stop() {
+    output_low(LEFT_MOTOR_FORWARD);  // Stop both motors
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+}
+
+void main() {
+    set_tris_c(0x00);  // Set PORTC as output for motor control
+    set_tris_d(0xFF);  // Set PORTD as input for sensors (D0 and D1)
+
+    int speed_delay = 100;  // Default speed (smaller value = faster, larger = slower)
+
+    while(TRUE) {
+        int left = input(LEFT_SENSOR);   // Read left sensor
+        int right = input(RIGHT_SENSOR); // Read right sensor
+
+        if (left == 0 && right == 0) {  // Both sensors detect the line (0)
+            move_forward(speed_delay);  // Move forward
+        } else if (left == 0 && right == 1) {  // Left sensor on line, right sensor off
+            turn_left(speed_delay);  // Turn left
+        } else if (left == 1 && right == 0) {  // Right sensor on line, left sensor off
+            turn_right(speed_delay);  // Turn right
+        } else if (left == 1 && right == 1) {  // Both sensors off line
+            stop();  // Stop the robot
+        } else {
+            stop();  // Unknown condition: stop the motors
+        }
+    }
+}
+

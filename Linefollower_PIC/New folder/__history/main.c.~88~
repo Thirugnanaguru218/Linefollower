@@ -1,0 +1,107 @@
+// Define motor control pins
+#define LEFT_MOTOR_FORWARD   PIN_C0
+#define LEFT_MOTOR_BACKWARD  PIN_C1
+#define RIGHT_MOTOR_FORWARD  PIN_C2
+#define RIGHT_MOTOR_BACKWARD PIN_C3
+
+// Define sensor input pins
+#define LEFT_SENSOR   PIN_D0
+#define RIGHT_SENSOR  PIN_D1
+
+// Motor control functions with PWM speed control
+void move_forward(int left_speed, int right_speed) {
+    output_high(LEFT_MOTOR_FORWARD);    // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);    // Ensure backward pin is low
+    output_high(RIGHT_MOTOR_FORWARD);   // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);   // Ensure backward pin is low
+
+    // Set motor speed using PWM
+    pwm1duty(left_speed);   // Set PWM duty cycle for left motor
+    pwm2duty(right_speed);  // Set PWM duty cycle for right motor
+}
+
+void move_backward(int left_speed, int right_speed) {
+    output_low(LEFT_MOTOR_FORWARD);    // Move left motor backward
+    output_high(LEFT_MOTOR_BACKWARD);  // Ensure forward pin is low
+    output_low(RIGHT_MOTOR_FORWARD);   // Move right motor backward
+    output_high(RIGHT_MOTOR_BACKWARD); // Ensure forward pin is low
+
+    // Set motor speed using PWM
+    pwm1duty(left_speed);   // Set PWM duty cycle for left motor
+    pwm2duty(right_speed);  // Set PWM duty cycle for right motor
+}
+
+void turn_left(int left_speed, int right_speed) {
+    output_low(LEFT_MOTOR_FORWARD);    // Stop left motor
+    output_high(LEFT_MOTOR_BACKWARD);  // Move left motor backward
+    output_high(RIGHT_MOTOR_FORWARD);  // Move right motor forward
+    output_low(RIGHT_MOTOR_BACKWARD);  // Ensure backward pin is low
+
+    // Set motor speed using PWM
+    pwm1duty(left_speed);   // Set PWM duty cycle for left motor (slower or stop)
+    pwm2duty(right_speed);  // Set PWM duty cycle for right motor (faster)
+}
+
+void turn_right(int left_speed, int right_speed) {
+    output_high(LEFT_MOTOR_FORWARD);    // Move left motor forward
+    output_low(LEFT_MOTOR_BACKWARD);    // Ensure backward pin is low
+    output_low(RIGHT_MOTOR_FORWARD);   // Stop right motor
+    output_high(RIGHT_MOTOR_BACKWARD); // Move right motor backward
+
+    // Set motor speed using PWM
+    pwm1duty(left_speed);   // Set PWM duty cycle for left motor (faster)
+    pwm2duty(right_speed);  // Set PWM duty cycle for right motor (slower or stop)
+}
+
+void stop() {
+    output_low(LEFT_MOTOR_FORWARD);   // Stop both motors
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+
+    // Set motor speed to 0 (stop)
+    pwm1duty(0);   // Stop left motor
+    pwm2duty(0);   // Stop right motor
+}
+
+// PWM initialization function
+void setup_pwm() {
+    // Set up PWM channels for motor speed control.
+    // For example, PWM1 for the left motor, PWM2 for the right motor.
+
+    // Set the PWM frequency (assuming 1 kHz)
+    pwm1_init(1000);  // Initialize PWM1 at 1kHz for left motor
+    pwm2_init(1000);  // Initialize PWM2 at 1kHz for right motor
+    pwm1_start();     // Start PWM for left motor
+    pwm2_start();     // Start PWM for right motor
+}
+
+void main() {
+    set_tris_c(0x00);  // Set PORTC as output for motor control (all motor pins)
+    set_tris_d(0xFF);  // Set PORTD as input for sensors (D0 and D1)
+
+    // Initialize PWM for motor speed control
+    setup_pwm();  // Setup PWM channels for motor speed control
+
+    while(TRUE) {
+        int left = input(LEFT_SENSOR);   // Read left sensor
+        int right = input(RIGHT_SENSOR); // Read right sensor
+
+        int left_speed = 255;  // Maximum speed for left motor
+        int right_speed = 255; // Maximum speed for right motor
+
+        // Sensor-based line-following logic
+        if (left == 0 && right == 0) {  // Both sensors detect the line (0)
+            move_forward(left_speed, right_speed);  // Move forward
+        } else if (left == 0 && right == 1) {  // Left sensor on line, right sensor off
+            turn_left(left_speed, right_speed);  // Turn left
+        } else if (left == 1 && right == 0) {  // Right sensor on line, left sensor off
+            turn_right(left_speed, right_speed);  // Turn right
+        } else if (left == 1 && right == 1) {  // Both sensors off line
+            stop();  // Stop the motors
+        } else {
+            stop();  // In case of an unknown condition, stop the motors
+        }
+    }
+}
+

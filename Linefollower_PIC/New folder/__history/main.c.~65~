@@ -1,0 +1,106 @@
+#include <16F877A.h>
+#fuses HS, NOWDT, NOLVP
+#use delay(clock=40000000)  // 40 MHz clock frequency
+
+// Motor direction control pins
+#define LEFT_MOTOR_FORWARD   PIN_B0 // Left motor forward direction
+#define LEFT_MOTOR_BACKWARD  PIN_B1 // Left motor backward direction
+#define RIGHT_MOTOR_FORWARD  PIN_B2 // Right motor forward direction
+#define RIGHT_MOTOR_BACKWARD PIN_B3 // Right motor backward direction
+
+// Enable pins (for PWM control of speed)
+#define LEFT_MOTOR_ENABLE    PIN_C2 // EN1 for left motor (connected to CCP1)
+#define RIGHT_MOTOR_ENABLE   PIN_C1 // EN2 for right motor (connected to CCP2)
+
+// Sensors
+#define LEFT_SENSOR PIN_D0
+#define RIGHT_SENSOR PIN_D1
+
+void setup_pwm() {
+    setup_ccp1(CCP_PWM);  // Configure CCP1 for PWM (for left motor enable)
+    setup_ccp2(CCP_PWM);  // Configure CCP2 for PWM (for right motor enable)
+    setup_timer_2(T2_DIV_BY_16, 255, 1);  // Set up Timer2 with prescaler 16
+}
+
+// Set PWM duty cycle (0-100% for speed control)
+void set_left_motor_speed(int duty_cycle) {
+    int16 pwm_value = (int16)(duty_cycle * 10.23);  // Convert % to 10-bit value
+    set_pwm1_duty(pwm_value);  // Set duty cycle for left motor enable
+}
+
+void set_right_motor_speed(int duty_cycle) {
+    int16 pwm_value = (int16)(duty_cycle * 10.23);  // Convert % to 10-bit value
+    set_pwm2_duty(pwm_value);  // Set duty cycle for right motor enable
+}
+
+// Motor control functions
+void move_forward(int speed) {
+    output_high(LEFT_MOTOR_FORWARD);
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+    set_left_motor_speed(speed);  // Set speed with PWM
+    set_right_motor_speed(speed);
+}
+
+void move_backward(int speed) {
+    output_low(LEFT_MOTOR_FORWARD);
+    output_high(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_high(RIGHT_MOTOR_BACKWARD);
+    set_left_motor_speed(speed);  // Set speed with PWM
+    set_right_motor_speed(speed);
+}
+
+void turn_left(int speed) {
+    output_low(LEFT_MOTOR_FORWARD);
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_high(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+    set_left_motor_speed(0);     // Stop left motor
+    set_right_motor_speed(speed);  // Right motor at given speed
+}
+
+void turn_right(int speed) {
+    output_high(LEFT_MOTOR_FORWARD);
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+    set_left_motor_speed(speed);   // Left motor at given speed
+    set_right_motor_speed(0);      // Stop right motor
+}
+
+void stop() {
+    set_left_motor_speed(0);    // Stop PWM signals
+    set_right_motor_speed(0);
+    output_low(LEFT_MOTOR_FORWARD);
+    output_low(LEFT_MOTOR_BACKWARD);
+    output_low(RIGHT_MOTOR_FORWARD);
+    output_low(RIGHT_MOTOR_BACKWARD);
+}
+
+void main() {
+    set_tris_c(0x00);  // Set PORTC as output for motor control and PWM
+    set_tris_b(0x00);  // Set PORTB as output for motor direction control
+    set_tris_d(0xFF);  // Set PORTD as input for sensors (D0 and D1)
+
+    setup_pwm();  // Initialize PWM for motors
+
+    while(TRUE) {
+        int left = input(LEFT_SENSOR);   // Read left sensor
+        int right = input(RIGHT_SENSOR); // Read right sensor
+
+        if (left == 0 && right == 0) {  // Both sensors detect the line (0)
+            move_forward(75);  // Move forward at 75% speed
+        } else if (left == 0 && right == 1) {  // Left sensor on line, right sensor off
+            turn_left(75);  // Turn left at 75% speed
+        } else if (left == 1 && right == 0) {  // Right sensor on line, left sensor off
+            turn_right(75);  // Turn right at 75% speed
+        } else if (left == 1 && right == 1) {  // Both sensors off line
+            move_backward(50);  // Move backward at 50% speed
+        } else {
+            stop();  // Unknown condition: stop the motors
+        }
+    }
+}
+
